@@ -92,6 +92,7 @@ string r[16], c[16];
 int gx[17], gy[17]; // the 17 position of the goal
 int step, gr, g;
 int per[4]; // the random permutation of the board
+int hardness=0;
 
 void changeColor(char c){
 	string s="\033[1;", t="RGYBPC";
@@ -114,7 +115,7 @@ void initMap(){
 	for(int i=0; i<Gx[per[0]].size(); ++i, ++k)gx[k]=Gx[per[0]][i]-'a', gy[k]=Gy[per[0]][i]-'a';
 	for(int i=0; i<Gx[per[1]].size(); ++i, ++k)gx[k]=-Gy[per[1]][i]+'p', gy[k]=Gx[per[1]][i]-'a';
 	for(int i=0; i<Gx[per[2]].size(); ++i, ++k)gx[k]=-Gx[per[2]][i]+'p', gy[k]=-Gy[per[2]][i]+'p';
-	for(int i=0; i<Gx[per[3]].size(); ++i, ++k)gx[k]=Gy[per[3]][i]-'a', gy[k]=-Gx[per[3]][i]+'p'; 
+	for(int i=0; i<Gx[per[3]].size(); ++i, ++k)gx[k]=Gy[per[3]][i]-'a', gy[k]=-Gx[per[3]][i]+'p';
 }
 
 struct point{
@@ -167,13 +168,14 @@ void makeMap(){
 	changeColor('W');
 }
 
-void init(){
-	step=0, gr=rand()%4, g=rand()%17;
+void init(int _g, int r){ // when a game start
+	//step=0, gr=rand()%4, g=rand()%17;
+	step=0, gr=r, g=_g;
 	makeMap();
 }
 
 const uint kN=1<<23;
-uint H[kN], from[kN], goal, gbot; // the goal and the robot to the goal
+uint H[kN], from[kN], goal[17], gd[17][4]; // goal distance
 point nxt[16][16][4];
 bool vis[kN];
 int dis[kN];
@@ -208,10 +210,12 @@ void addRobot(uint &x, point p, uint r){
 
 uint bfsInit(){
 	for(int i=0; i<kN; ++i)H[i]=vis[i]=dis[i]=0;
-	goal=(gx[g]<<4)+gy[g], gbot=gr<<3;
+	//goal=(gx[g]<<4)+gy[g], gbot=gr<<3;
+	for(int i=0; i<17; ++i)goal[i]=gx[i]<<4|gy[i];
 	for(int i=0; i<16; ++i)for(int j=0; j<16; ++j)for(int k=0; k<4; ++k)nxt[i][j][k]=nxtPos(point(i, j), k);
 	uint x=0;
 	for(int i=0; i<4; ++i)addRobot(x, robot[i], i);
+	for(int i=0; i<17; ++i)for(int j=0; j<4; ++j)gd[i][j]=-1;
 	return x;
 }
 
@@ -233,22 +237,32 @@ uint Nxt(uint x, uint y){
 	return x;
 }
 
-uint bfs(uint x){
+bool on(uint x, int g, uint r){return (x>>(r<<3u)&255u)==goal[g];}
+
+point bfs(uint x){
+	vector<point> r;
+	//for(int i=0; i<17; ++i)for(int j=0; j<4; ++j)r.push_back(point(i, j));
+	for(int i=0; i<hardness; ++i)r.push_back(point(rand()%17, rand()&3));
 	queue<uint> b;
 	b.push(x), dis[h(x)]=from[h(x)]=0, vis[h(x)]=1;
-	while(!b.empty()){
+	for(int i=0; i<r.size(); ++i)if(on(x, r[i].x, r[i].y))gd[r[i].x][r[i].y]=x, r.erase(r.begin()+i), --i;
+	//if((x>>gbot&255u)==goal)return x;
+	while(!b.empty()&&r.size()){
 		x=b.front(), b.pop();
 		for(int i=0; i<16; ++i){
 			uint y=Nxt(x, i);
 			int z=h(y);
 			if(!vis[z]){
 				vis[z]=1, dis[z]=dis[h(x)]+1, from[z]=x;
-				if((y>>gbot&255u)==goal)return y;
+				for(int i=0; i<r.size(); ++i)if(on(y, r[i].x, r[i].y))gd[r[i].x][r[i].y]=y, r.erase(r.begin()+i), --i;
+				//if((y>>gbot&255u)==goal)return y;
 				b.push(y);
 			}
 		}
 	}
-	return 0;
+	point mx=point(0, 0);
+	for(int i=0; i<17; ++i)for(int j=0; j<4; ++j)if(dis[h(gd[i][j])]>dis[h(gd[mx.x][mx.y])])mx=point(i, j);
+	return point(mx.x, mx.y);
 }
 
 void print(uint x){
@@ -262,21 +276,32 @@ void waitRes(){
 }
 
 int main(){
+	cout<<"Ricochet Robots\n\
+Author: Po-Hsiang, Hsu\n", waitRes();
 	cout<<"The robot won't stop until it bumps into a wall or another robot.\n\
 The mission is to move the given robot to the right place (which is ususally marked X).\n\
 The place is marked Y if there's a robot on it.\n\
 Have fun!\n", waitRes();
+	while(1){
+		cout<<"Which mode do you want to play? (easy/medium/hard): ";
+		string s; getline(cin, s);
+		if(s=="easy"){hardness=1; break;}
+		if(s=="medium"){hardness=3; break;}
+		if(s=="hard"){hardness=5; break;}
+		cout<<"I can't understand.\n";
+	}
 	robot[0]=point(0, 0), robot[1]=point(0, 15), robot[2]=point(15, 15), robot[3]=point(15, 0);
 	srand(time(0)), initMap();
 	while(1){
-		init();
-		uint x=bfs(bfsInit());
+		point g=bfs(bfsInit());
+		uint x=gd[g.x][g.y];
+		init(g.x, g.y);
 		cout<<dis[h(x)]<<" steps in total!\n";
 		waitRes();
 		vector<uint> route;
 		route.push_back(x);
 		while(from[h(x)])route.push_back(x=from[h(x)]);
 		reverse(route.begin(), route.end());
-		for(uint i:route)print(i), sleep(1), ++step;
+		for(uint i:route)print(i), usleep(500000), ++step;
 	}
 }
