@@ -265,8 +265,7 @@ int main(){
 	cout<<"The robot won't stop until it bumps into a wall or another robot.\n\
 The mission is to move the given robot to the right place (which is ususally marked X).\n\
 The place is marked Y if there's a robot on it.\n\
-Press N to have a new mission.\n\
-Have fun!\n";
+Have fun!\n", waitRes();
 	robot[0]=point(0, 0), robot[1]=point(0, 15), robot[2]=point(15, 15), robot[3]=point(15, 0);
 	srand(time(0)), initMap();
 	while(1){
