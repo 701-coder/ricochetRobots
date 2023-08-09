@@ -92,7 +92,7 @@ string r[16], c[16];
 int gx[17], gy[17]; // the 17 position of the goal
 int step, gr, g;
 int per[4]; // the random permutation of the board
-int hardness=0;
+int hardness=0, statistics[100];
 
 void changeColor(char c){
 	string s="\033[1;", t="RGYBPC";
@@ -125,6 +125,7 @@ struct point{
 	point operator+(const point rhs){return point(x+rhs.x, y+rhs.y);}
 	void operator+=(const point rhs){x+=rhs.x, y+=rhs.y;}
 	bool operator==(const point rhs){return x==rhs.x&&y==rhs.y;}
+	bool operator!=(const point rhs){return x!=rhs.x||y!=rhs.y;}
 }robot[4];
 
 const point direction[4]={point(1, 0), point(0, 1), point(-1, 0), point(0, -1)};
@@ -166,6 +167,7 @@ void makeMap(){
 		cout<<endl;
 	}
 	changeColor('W');
+	for(int i=0; i<4; ++i)for(int j=i+1; j<4; ++j)assert(robot[i]!=robot[j]);
 }
 
 void init(int _g, int r){ // when a game start
@@ -209,7 +211,7 @@ void addRobot(uint &x, point p, uint r){
 }
 
 uint bfsInit(){
-	for(int i=0; i<kN; ++i)H[i]=vis[i]=dis[i]=0;
+	for(int i=0; i<kN; ++i)H[i]=vis[i]=0, dis[i]=-1;
 	//goal=(gx[g]<<4)+gy[g], gbot=gr<<3;
 	for(int i=0; i<17; ++i)goal[i]=gx[i]<<4|gy[i];
 	for(int i=0; i<16; ++i)for(int j=0; j<16; ++j)for(int k=0; k<4; ++k)nxt[i][j][k]=nxtPos(point(i, j), k);
@@ -271,8 +273,10 @@ void print(uint x){
 }
 
 void waitRes(){
+#ifndef fast
 	string s;
 	cout<<"Press enter to continue...", getline(cin, s);
+#endif
 }
 
 int main(){
@@ -282,26 +286,39 @@ Author: Po-Hsiang, Hsu\n", waitRes();
 The mission is to move the given robot to the right place (which is ususally marked X).\n\
 The place is marked Y if there's a robot on it.\n\
 Have fun!\n", waitRes();
+	ofstream out;
 	while(1){
 		cout<<"Which mode do you want to play? (easy/medium/hard): ";
 		string s; getline(cin, s);
-		if(s=="easy"){hardness=1; break;}
-		if(s=="medium"){hardness=3; break;}
-		if(s=="hard"){hardness=5; break;}
+		if(s=="easy"){hardness=1, out.open("easy.txt"); break;}
+		if(s=="medium"){hardness=3, out.open("medium.txt"); break;}
+		if(s=="hard"){hardness=5, out.open("hard.txt"); break;}
 		cout<<"I can't understand.\n";
 	}
 	robot[0]=point(0, 0), robot[1]=point(0, 15), robot[2]=point(15, 15), robot[3]=point(15, 0);
 	srand(time(0)), initMap();
-	while(1){
+	for(int cnt=1; ; ++cnt){
 		point g=bfs(bfsInit());
 		uint x=gd[g.x][g.y];
 		init(g.x, g.y);
 		cout<<dis[h(x)]<<" steps in total!\n";
+		++statistics[dis[h(x)]];
+		if(cnt%100==0){
+			for(int i=0; i<100; ++i)out<<statistics[i]<<' ';
+			out<<endl;
+		}
 		waitRes();
 		vector<uint> route;
 		route.push_back(x);
+		assert(x!=0&&x!=-1);
 		while(from[h(x)])route.push_back(x=from[h(x)]);
 		reverse(route.begin(), route.end());
-		for(uint i:route)print(i), usleep(500000), ++step;
+		for(uint i:route){
+			print(i);
+#ifndef fast
+			usleep(500000);
+#endif
+			++step;
+		}
 	}
 }
