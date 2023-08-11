@@ -90,7 +90,7 @@ const string Gx[4]={"cefg", "bdegh", "bceg", "bcdg"},
 
 string r[16], c[16];
 int gx[17], gy[17]; // the 17 position of the goal
-int step, gr, g;
+int step, gr, g, score=0;
 int per[4]; // the random permutation of the board
 int hardness=0, statistics[100];
 
@@ -131,7 +131,7 @@ struct point{
 const point direction[4]={point(1, 0), point(0, 1), point(-1, 0), point(0, -1)};
 
 void makeMap(){
-	cout<<step<<" steps\nRobot #"<<gr<<" to X\n";
+	cout<<"Score: "<<score<<'\t'<<step<<" steps\tRobot #"<<gr<<" to X\n";
 	changeColor('W');
 	for(int i=0; i<65; ++i)cout<<(i&3?'_':'.'); cout<<endl;
 	for(int i=0; i<16; ++i){
@@ -279,6 +279,23 @@ void waitRes(){
 #endif
 }
 
+int move(uint x, string s){
+	string t0="sdwa", t1="jkl;"; int r=gr, cnt=0;
+	for(char i:s){
+		for(int j=0; j<4; ++j)if(i==t0[j])x=Nxt(x, r*4+j), ++cnt;
+		for(int j=0; j<4; ++j)if(i==t1[j])r=j;
+	}
+	if(on(x, g, gr))return cnt;
+	else return -1;
+}
+
+int ask(uint x){
+	string s; getline(cin, s);
+	int r=gr;
+	if(s=="skip")return -2;
+	return move(x, s);
+}
+
 int main(){
 	cout<<"Ricochet Robots\n\
 Author: Po-Hsiang, Hsu\n", waitRes();
@@ -301,18 +318,29 @@ Have fun!\n", waitRes();
 		point g=bfs(bfsInit());
 		uint x=gd[g.x][g.y];
 		init(g.x, g.y);
-		cout<<dis[h(x)]<<" steps in total!\n";
-		++statistics[dis[h(x)]];
+		int ans=dis[h(x)];
+		cout<<ans<<" steps in total!\n";
+		++statistics[ans];
 		if(cnt%100==0){
 			for(int i=0; i<100; ++i)out<<statistics[i]<<' ';
 			out<<endl;
 		}
-		waitRes();
 		vector<uint> route;
 		route.push_back(x);
 		assert(x!=0&&x!=-1);
 		while(from[h(x)])route.push_back(x=from[h(x)]);
 		reverse(route.begin(), route.end());
+#ifdef play
+		while(1){
+			int y=ask(x);
+			if(y==-2)break;
+			if(y==-1)cout<<"Wrong! Enter skip to skip.\n";
+			else if(y<=ans){cout<<"Correct!\n", score+=ans*ans; break;}
+			else cout<<"It can be better! Enter skip to skip.\n";
+		}
+#else
+		waitRes();
+#endif
 		for(uint i:route){
 			print(i);
 #ifndef fast
